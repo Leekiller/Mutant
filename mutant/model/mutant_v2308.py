@@ -1,6 +1,4 @@
 from copy import deepcopy
-# import talib as ta
-import backtrader.talib as ta
 
 class Mutant:
     """ Mutant is a trading strategy driven by indicators.
