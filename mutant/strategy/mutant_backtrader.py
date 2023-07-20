@@ -1,4 +1,5 @@
 import backtrader as bt
+import backtrader.indicators as ta
 
 from ..model import Mutant
 
@@ -6,6 +7,9 @@ class MutantBacktrader(bt.Strategy):
     def __init__(self):
         self.model = Mutant()
         self.params = self.model.params
+        self.data_close = self.datas[0].close
+        self._generate_indicators()
+        self.order = None
 
     def log(self, txt, dt=None):
         dt = dt or self.datas[0].datetime.datetime(0)
@@ -15,16 +19,15 @@ class MutantBacktrader(bt.Strategy):
     def notify_order(self, order):
         if order.status in [order.Submitted, order.Accepted]:
             # Buy/Sell order submitted/accepted to/by broker - Nothing to do
-            return
-        # Check if an order has been completed
-        # Attention: broker could reject order if not enough cash
-        if order.status in [order.Completed]:
+            return None
+        elif order.status in [order.Completed]:
+            # Check if an order has been completed
+            # Attention: broker could reject order if not enough cash
             if order.isbuy():
-                self.log(
-                    'BUY EXECUTED, Price: %.2f, Cost: %.2f, Comm %.2f' %
-                    (order.executed.price,
-                     order.executed.value,
-                     order.executed.comm))
+                self.log('BUY EXECUTED, Price: %.2f, Cost: %.2f, Comm %.2f' %
+                         (order.executed.price,
+                          order.executed.value,
+                          order.executed.comm))
                 self.buyprice = order.executed.price
                 self.buycomm = order.executed.comm
             elif order.issell(): 
@@ -32,50 +35,69 @@ class MutantBacktrader(bt.Strategy):
                          (order.executed.price,
                           order.executed.value,
                           order.executed.comm))
-
         elif order.status in [order.Canceled, order.Margin, order.Rejected]:
             self.log('Order Canceled/Margin/Rejected')
-
         # Write down: no pending order
         self.order = None
-
-    def next(self):
-        self.log('Close, %.2f' % self.dataclose[0])
-        pass
-
-    def _generate_indicators(self):
-        """ Get indicators from Pandas dataframe
-
-        Candles are the data feed from Backtrader
-        All the indicators are calculated using Backtrader.talib
-        
-        1. Extract latest candle.
-        2. Calculate indicators.
-        """
-        close_hist = candles.close
-        # Latest candle
-        self.open = candles.open[0]
-        self.high = candles.high[0]
-        self.low = candles.low[0]
-        self.close = candles.close[0]
-        # EMA - Moving average exponential
-        ema_1 = ta.EMA(close_hist, timeperiod=self.params["ema_1_length"])
-        ema_2 = ta.EMA(close_hist, timeperiod=self.params["ema_2_length"])
-        ema_3 = ta.EMA(close_hist, timeperiod=self.params["ema_3_length"])
-        self.ema_1 = ema_1[0]
-        self.ema_2 = ema_2[0]
-        self.ema_3 = ema_3[0]
-        # MACD - Moving average convergence divergence
-        macd, macd_signal, macd_hist = ta.MACD(
-            close_hist, 
-            fastperiod=self.params["macd_fast_length"],
-            slowperiod=self.params["macd_slow_length"],
-            signalperiod=self.params["macd_signal_length"])
-        self.macd = macd[0]
-        self.macd_signal = macd_signal[0]
-        self.macd_hist = macd_hist[0]
-        # RSI - Relative strength index
-        rsi = ta.RSI(close_hist, timeperiod=self.params["rsi_length"])
-        self.rsi = rsi[0]
         return None
 
+    def notify_trade(self, trade):
+        if not trade.isclosed:
+            return None
+        self.log('OPERATION PROFIT, GROSS %.2f, NET %.2f' %
+                 (trade.pnl, trade.pnlcomm))
+        return None
+
+    def next(self):
+        # Simply log the closing price of the series from the reference
+        # self.log('Close, %.2f' % self.data_close[0])
+        candle = {
+            "open": self.datas[0].open[0],
+            "high": self.datas[0].high[0],
+            "low": self.datas[0].low[0],
+            "close": self.datas[0].close[0]
+        }
+        indicators = {
+            "ema_1": self.ema_1[0],
+            "ema_2": self.ema_2[0],
+            "ema_3": self.ema_3[0],
+            "macd": self.macd[0],
+            "macd_signal": self.macd_signal[0],
+            "macd_hist": self.macd_hist[0],
+            "macd_avg": self.macd_avg[0],
+            "rsi": self.rsi[0]
+        }
+        if not self.position:
+            order = self.model.get_order(candle, indicators)
+            if order is not None:
+                if order["trade_type"]=="Long":
+                    self.log('BUY CREATE, %.2f' % self.data_close[0])
+                    self.order = self.buy_bracket(exectype=bt.Order.Market,
+                                                 limitprice=order["tp_price"],
+                                                 stopprice=order["sl_price"])
+                if order["trade_type"]=="Short":
+                    self.log('SELL CREATE, %.2f' % self.data_close[0])
+                    self.order = self.sell_bracket(exectype=bt.Order.Market,
+                                                 limitprice=order["tp_price"],
+                                                 stopprice=order["sl_price"])
+        return None
+                    
+    def _generate_indicators(self):
+        # EMA - Moving average exponential  
+        self.ema_1 = ta.EMA(self.data_close, period=self.params["ema_1_length"])
+        self.ema_2 = ta.EMA(self.data_close, period=self.params["ema_2_length"])
+        self.ema_3 = ta.EMA(self.data_close, period=self.params["ema_3_length"])
+        # MACD - Moving average convergence divergence
+        macd = ta.MACD(
+            period_me1=self.params["macd_fast_length"],
+            period_me2=self.params["macd_slow_length"],
+            period_signal=self.params["macd_signal_length"])
+        self.macd = macd.macd
+        self.macd_signal = macd.signal
+        self.macd_hist = ta.MACDHisto(
+            period_me1=self.params["macd_fast_length"],
+            period_me2=self.params["macd_slow_length"],
+            period_signal=self.params["macd_signal_length"])
+        self.macd_avg = ta.SMA(self.macd_hist, period=self.params["macd_average_length"])
+        self.rsi = ta.RSI(self.data_close, period=self.params["rsi_length"])
+        return None
