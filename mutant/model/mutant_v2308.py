@@ -1,5 +1,6 @@
 from copy import deepcopy
-import talib as ta
+# import talib as ta
+import backtrader.talib as ta
 
 class Mutant:
     """ Mutant is a trading strategy driven by indicators.
@@ -9,7 +10,7 @@ class Mutant:
         self.params = { # Default parameters
             "required_candles_length": 157,
             "tp": 0.6, # Unit of percentage
-            "sl": 1.2, # Unit of percentage
+            "sl": 1.8, # Unit of percentage
             "ema_1_length": 126,
             "ema_2_length": 156,
             "ema_3_length": 121,
@@ -22,16 +23,19 @@ class Mutant:
             "rsi_short": 48
         }
         self.params.update(deepcopy(params))
+        # TP/SL
+        self.tp = self.params["tp"]
+        self.sl = self.params["sl"]
+        self.rsi_long = self.params["rsi_long"]
+        self.rsi_short = self.params["rsi_short"] 
 
-    def get_order(self, candles):
+    def get_order(self, candle, indicators):
         """ Take action based on the candles. 
 
-        1. Calculate indicators with candles.
-        2. Check the trend.
-        3. Check if long/short condition is matched.
-        4. Create order.
+        1. Check the trend.
+        2. Check if long/short condition is matched.
+        3. Create order.
 
-        Candles: A Pandas dataframe with required_caldles_length.
         Order:
             trade_type: Long/Short
             open_price: high/low of the current candle for long/short
@@ -41,7 +45,18 @@ class Mutant:
         To do:
             - Raise error if len(candles) < MINIMUM_CANDLES_LENGTH.
         """
-        self._get_indicators(candles)
+        self.open = candle["open"]
+        self.high = candle["high"]
+        self.low = candle["low"]
+        self.close = candle["close"]
+        self.ema_1 = indicators["ema_1"]
+        self.ema_2 = indicators["ema_2"]
+        self.ema_3 = indicators["ema_3"]
+        self.macd = indicators["macd"]
+        self.macd_signal = indicators["macd_signal"]
+        self.macd_hist = indicators["macd_hist"]
+        self.macd_avg = indicators["macd_avg"]
+        self.rsi = indicators["rsi"]
         trend = self._check_trend()
         if trend == "Bull" and self._is_long():
             order = self._generate_order("Long")
@@ -50,43 +65,6 @@ class Mutant:
         else:
             order = None
         return order
-
-    def _get_indicators(self, candles):
-        """ Get indicators from Pandas dataframe
-
-        1. Convert Pandas dataframe to Numpy array.
-        2. Extract latest candle.
-        3. Calculate indicators.
-        """
-        open_hist = candles["open"].to_numpy()
-        high_hist = candle["high"].to_numpy()
-        low_hist = candle["low"].to_numpy()
-        close_hist = candle["close"].to_numpy()
-        volume_hist = candle["volume"].to_numpy()
-        # Latest candle
-        self.open = open_hist[-1]
-        self.high = high_hist[-1]
-        self.low = low_hist[-1]
-        self.close = close_hist[-1]
-        # TP/SL
-        self.tp = self.params["tp"]
-        self.sl = self.params["sl"]
-        # EMA - Moving average exponential
-        self.ema_1 = ta.EMA(close_hist, timeperiod=self.params["ema_1_length"])[-1]
-        self.ema_2 = ta.EMA(close_hist, timeperiod=self.params["ema_2_length"])[-1]
-        self.ema_3 = ta.EMA(close_hist, timeperiod=self.params["ema_3_length"])[-1]
-        # MACD - Moving average convergence divergence
-        self.macd, self.macd_signal, self.macd_hist = ta.MACD(
-            close_hist, 
-            fastperiod=self.params["macd_fast_length"],
-            slowperiod=self.params["macd_slow_length"],
-            signalperiod=self.params["macd_signal_length"]
-        )
-        # RSI - Relative strength index
-        self.rsi = ta.RSI(close_hist, timeperiod=self.params["rsi_length"])
-        self.rsi_long = self.params["rsi_long"]
-        self.rsi_short = self.params["rsi_short"] 
-        return None
 
     def _check_trend(self):
         if self.ema_2 > self.ema_3:
