@@ -6,26 +6,25 @@ class Mutant:
     """
     def __init__(self, **params):
         self.params = { # Default parameters
-            "required_candles_length": 157,
-            "tp": 0.6, # Unit of percentage
-            "sl": 1.8, # Unit of percentage
-            "ema_1_length": 126,
-            "ema_2_length": 156,
-            "ema_3_length": 121,
-            "macd_fast_length": 45,
-            "macd_slow_length": 54,
-            "macd_signal_length": 45,
-            "macd_average_length": 49,
-            "rsi_length": 14,
-            "rsi_long": 51,
-            "rsi_short": 48
+            "tp": [0.6], # Unit of percentage
+            "sl": [1.8], # Unit of percentage
+            "ema_1_length": [126],
+            "ema_2_length": [156],
+            "ema_3_length": [121],
+            "macd_fast_length": [45],
+            "macd_slow_length": [54],
+            "macd_signal_length": [45],
+            "macd_average_length": [49],
+            "rsi_length": [14],
+            "rsi_long": [51],
+            "rsi_short": [48]
         }
         self.params.update(deepcopy(params))
         # TP/SL
-        self.tp = self.params["tp"]
-        self.sl = self.params["sl"]
-        self.rsi_long = self.params["rsi_long"]
-        self.rsi_short = self.params["rsi_short"] 
+        self.tp = self.params["tp"][0]
+        self.sl = self.params["sl"][0]
+        self.rsi_long = self.params["rsi_long"][0]
+        self.rsi_short = self.params["rsi_short"][0]
 
     def get_order(self, candle, indicators):
         """ Take action based on the candles. 
