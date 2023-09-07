@@ -1,14 +1,14 @@
 import backtrader as bt
 import backtrader.indicators as ta
 
-from ..model import Mutant
+from ..model import MutantBaby
 
 class MutantBabyBacktrader(bt.Strategy):
     def __init__(self, model=None, print_log=True):
         if model is not None:
             self.model = model
         else:
-            self.model = Mutant()
+            self.model = MutantBaby()
         self.params = self.model.params
         self.data_close = self.datas[0].close
         self._generate_indicators()
