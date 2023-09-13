@@ -93,8 +93,7 @@ class MutantBabyBacktrader(bt.Strategy):
         self.ema_2 = ta.EMA(self.data_close, period=self.params["ema_2_length"][0])
         self.ema_3 = ta.EMA(self.data_close, period=self.params["ema_3_length"][0])
         # MACD - Moving average convergence divergence
-        macd = ta.MACD(
-            period_me1=self.params["macd_fast_length"][0],
+        macd = ta.MACD( period_me1=self.params["macd_fast_length"][0],
             period_me2=self.params["macd_slow_length"][0],
             period_signal=self.params["macd_signal_length"][0])
         self.macd = macd.macd
