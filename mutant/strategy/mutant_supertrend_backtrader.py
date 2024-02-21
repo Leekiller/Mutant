@@ -73,13 +73,14 @@ class MutantSupertrendBacktrader(bt.Strategy):
             self.stdir_main = [-1]
         elif self.stline_main[0] > self.data_close[0]:
             self.stdir_main = [1]
-        else self.stdir_main = [1]
+        else: 
+            self.stdir_main = [1]
         # stdir_prev_main
         if self.stline_main[-1] < self.data_close[-1]:
             self.stdir_prev_main = [-1]
         elif self.stline_main[-1] > self.data_close[-1]:
             self.stdir_prev_main = [1]
-        else
+        else:
             self.stdir_prev_main = [1]
         # stdir_tf2
         if self.stline_tf2[0] < self.data_close[0]:
